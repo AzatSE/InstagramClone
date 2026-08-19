@@ -1,0 +1,83 @@
+{% extends 'posts/base.html' %}
+
+{% block navbar_extra %}
+<button class="btn btn-link fs-4 p-0 text-dark text-decoration-none" data-bs-toggle="modal" data-bs-target="#uploadModal" title="Новая публикация">
+    ➕
+</button>
+{% endblock %}
+
+{% block content %}
+
+<!-- Модальное окно публикации, как кнопка "+" в Instagram -->
+<div class="modal fade" id="uploadModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Новая публикация</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <div class="modal-body text-center">
+
+            <div id="previewWrapper" class="mb-3 d-none">
+                <img id="imagePreview" src="" class="img-fluid rounded" style="max-height: 350px;">
+            </div>
+
+            <label id="uploadLabel" for="imageInput" class="btn btn-outline-secondary w-100 mb-3">
+                Выбрать фото
+            </label>
+            <input type="file" name="image" id="imageInput" accept="image/*" class="d-none" required>
+
+            <textarea name="caption" class="form-control" placeholder="Добавьте подпись..." rows="2"></textarea>
+        </div>
+        <div class="modal-footer">
+            <button type="submit" class="btn btn-primary w-100">Поделиться</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% for post in posts %}
+<div class="card shadow-sm">
+    <div class="card-header bg-white fw-bold">{{ post.author.username }}</div>
+    <img src="{{ post.image.url }}" class="card-img-top">
+    <div class="card-body">
+        <button class="like-btn" data-post-id="{{ post.id }}">
+            {% if user in post.likes.all %}❤️{% else %}🤍{% endif %}
+        </button>
+        <span class="likes-count" id="likes-{{ post.id }}">{{ post.total_likes }}</span> лайков
+        <p class="mt-2"><b>{{ post.author.username }}</b> {{ post.caption }}</p>
+    </div>
+</div>
+{% endfor %}
+
+<script>
+document.getElementById('imageInput').addEventListener('change', function (e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function (event) {
+        document.getElementById('imagePreview').src = event.target.result;
+        document.getElementById('previewWrapper').classList.remove('d-none');
+        document.getElementById('uploadLabel').textContent = 'Заменить фото';
+    };
+    reader.readAsDataURL(file);
+});
+
+document.querySelectorAll('.like-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+        const postId = btn.dataset.postId;
+        const res = await fetch(`/like/${postId}/`, {
+            method: 'POST',
+            headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+        });
+        const data = await res.json();
+        btn.textContent = data.liked ? '❤️' : '🤍';
+        document.getElementById(`likes-${postId}`).textContent = data.total_likes;
+    });
+});
+</script>
+{% endblock %}
