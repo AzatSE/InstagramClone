@@ -22,7 +22,7 @@
 
 ## Быстрый старт
 
-\`\`\`bash
+```bash
 git clone https://github.com/username/InstagramClone.git
 cd InstagramClone
 
@@ -32,21 +32,21 @@ pip install -r requirements.txt
 cp .env.example .env
 python manage.py migrate
 python manage.py runserver
-\`\`\`
+```
 
-Открыть: \`http://127.0.0.1:8000/\`
+Открыть: `http://127.0.0.1:8000/`
 
 ---
 
 ## Структура
 
-\`\`\`
+```
 InstagramClone/
 ├── config/     # настройки Django
 ├── posts/      # посты, лайки, лента
 ├── media/      # загруженные файлы
 └── .env.example
-\`\`\`
+```
 
 ---
 
