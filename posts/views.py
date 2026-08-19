@@ -3,7 +3,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth import login
 from django.http import JsonResponse
-from .models import Post
+from .models import Post, Profile
 
 
 @login_required
@@ -39,8 +39,26 @@ def register(request):
         form = UserCreationForm(request.POST)
         if form.is_valid():
             user = form.save()
+            Profile.objects.create(user=user)
             login(request, user)
             return redirect('feed')
     else:
         form = UserCreationForm()
     return render(request, 'posts/register.html', {'form': form})
+
+
+@login_required
+def profile(request):
+    profile_obj, _ = Profile.objects.get_or_create(user=request.user)
+    posts = Post.objects.filter(author=request.user)
+
+
+    if request.method == 'POST':
+        profile_photo = request.FILES.get('profile_photo')
+        bio = request.POST.get('bio', '')
+        if profile_photo:
+            profile_obj.profile_photo = profile_photo
+        profile_obj.bio = bio
+        profile_obj.save()
+        return redirect('profile')
+    return render(request, 'posts/profile.html', {'profile_obj': profile_obj, 'posts': posts})

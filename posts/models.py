@@ -17,3 +17,9 @@ class Post(models.Model):
 
     def total_likes(self):
         return self.likes.count()
+
+
+class Profile(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
+    profile_photo = models.ImageField(upload_to='profile_photos/', blank=True)
+    bio = models.CharField(max_length=150, blank=True)
