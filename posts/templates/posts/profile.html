@@ -1,0 +1,161 @@
+{% extends 'posts/base.html' %}
+{% block content %}
+
+<div class="d-flex align-items-center mb-4 mt-3">
+    <div class="me-4">
+        {% if profile_obj.profile_photo %}
+            <img src="{{ profile_obj.profile_photo.url }}" class="profile-profile_photo">
+        {% else %}
+            <div class="profile_photo-placeholder">{{ user.username|first|upper }}</div>
+        {% endif %}
+    </div>
+    <div>
+        <div class="d-flex align-items-center mb-2">
+            <h4 class="mb-0 me-3">{{ user.username }}</h4>
+            <button class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#editProfileModal">
+                Редактировать профиль
+            </button>
+        </div>
+        <div class="mb-2"><b>{{ posts.count }}</b> публикаций</div>
+        <div>{{ profile_obj.bio|default:"Нет описания" }}</div>
+    </div>
+</div>
+
+<hr>
+
+<div class="posts-grid">
+    {% for post in posts %}
+        <button type="button" data-bs-toggle="modal" data-bs-target="#postModal-{{ post.id }}">
+            <img src="{{ post.image.url }}" title="{{ post.caption }}">
+        </button>
+    {% empty %}
+        <p class="text-muted">Пока нет публикаций.</p>
+    {% endfor %}
+</div>
+
+<!-- Модальные окна постов, в стиле Instagram: фото слева, инфо-панель справа -->
+{% for post in posts %}
+<div class="modal fade" id="postModal-{{ post.id }}" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered ig-modal-dialog">
+    <div class="modal-content ig-modal-content">
+        <button type="button" class="ig-close" data-bs-dismiss="modal">&times;</button>
+        <div class="ig-modal-img">
+            <img src="{{ post.image.url }}" class="post-image" data-post-id="{{ post.id }}">
+            <div class="like-animation" id="like-anim-{{ post.id }}"><i class="bi bi-heart-fill"></i></div>
+        </div>
+        <div class="ig-modal-info">
+            <div class="ig-modal-header">
+                {% if profile_obj.profile_photo %}
+                    <img src="{{ profile_obj.profile_photo.url }}" class="nav-profile_photo">
+                {% else %}
+                    <span class="nav-profile_photo-placeholder">{{ user.username|first|upper }}</span>
+                {% endif %}
+                <b>{{ user.username }}</b>
+            </div>
+            <div class="ig-modal-body">
+                <b>{{ user.username }}</b> {{ post.caption }}
+            </div>
+            <div class="ig-modal-actions">
+                <div class="action-icons">
+                    <div class="action-icons-left">
+                        <button class="icon-btn like-btn {% if user in post.likes.all %}liked{% endif %}" data-post-id="{{ post.id }}">
+                            <i class="bi {% if user in post.likes.all %}bi-heart-fill{% else %}bi-heart{% endif %}"></i>
+                        </button>
+                        <button class="icon-btn" title="Комментировать"><i class="bi bi-chat"></i></button>
+                        <button class="icon-btn" title="Поделиться"><i class="bi bi-send"></i></button>
+                    </div>
+                    <button class="icon-btn" title="Сохранить"><i class="bi bi-bookmark"></i></button>
+                </div>
+                <div><b><span class="likes-count" id="likes-{{ post.id }}">{{ post.total_likes }}</span> лайков</b></div>
+            </div>
+        </div>
+    </div>
+  </div>
+</div>
+{% endfor %}
+
+<!-- Модальное окно редактирования профиля -->
+<div class="modal fade" id="editProfileModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Редактировать профиль</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <div class="modal-body text-center">
+
+            {% if profile_obj.profile_photo %}
+                <img id="profile_photoPreview" src="{{ profile_obj.profile_photo.url }}" class="profile-profile_photo mb-3">
+            {% else %}
+                <img id="profile_photoPreview" src="" class="profile-profile_photo mb-3 d-none">
+            {% endif %}
+
+            <div>
+                <label for="profile_photoInput" class="btn btn-outline-secondary btn-sm mb-3">Изменить фото</label>
+                <input type="file" name="profile_photo" id="profile_photoInput" accept="image/*" class="d-none">
+            </div>
+
+            <textarea name="bio" class="form-control" placeholder="Расскажите о себе..." rows="3">{{ profile_obj.bio }}</textarea>
+        </div>
+        <div class="modal-footer">
+            <button type="submit" class="btn btn-primary w-100">Сохранить</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+document.getElementById('profile_photoInput').addEventListener('change', function (e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function (event) {
+        const img = document.getElementById('profile_photoPreview');
+        img.src = event.target.result;
+        img.classList.remove('d-none');
+    };
+    reader.readAsDataURL(file);
+});
+
+async function likePost(postId, likeOnly) {
+    const likeBtn = document.querySelector(`.like-btn[data-post-id="${postId}"]`);
+    if (!likeBtn) return;
+    if (likeOnly && likeBtn.classList.contains('liked')) return; // уже лайкнуто — двойной клик ничего не делает
+
+    const res = await fetch(`/like/${postId}/`, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+    });
+    const data = await res.json();
+    const icon = likeBtn.querySelector('i');
+    icon.classList.toggle('bi-heart', !data.liked);
+    icon.classList.toggle('bi-heart-fill', data.liked);
+    likeBtn.classList.toggle('liked', data.liked);
+    document.getElementById(`likes-${postId}`).textContent = data.total_likes;
+}
+
+function showLikeAnimation(postId) {
+    const el = document.getElementById(`like-anim-${postId}`);
+    if (!el) return;
+    el.classList.remove('show');
+    void el.offsetWidth; // перезапуск CSS-анимации
+    el.classList.add('show');
+}
+
+document.querySelectorAll('.like-btn').forEach(btn => {
+    btn.addEventListener('click', () => likePost(btn.dataset.postId, false));
+});
+
+document.querySelectorAll('.post-image').forEach(img => {
+    img.addEventListener('dblclick', () => {
+        const postId = img.dataset.postId;
+        showLikeAnimation(postId);
+        likePost(postId, true);
+    });
+});
+</script>
+{% endblock %}
